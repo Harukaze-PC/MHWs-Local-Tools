@@ -1,0 +1,72 @@
+[
+  {
+    "name": "大剑",
+    "file": "great-sword.png",
+    "url": "https://www.monsterhunter.com/wilds/assets/img/hunting/weapon/icon/great-sword_ic.png"
+  },
+  {
+    "name": "太刀",
+    "file": "long-sword.png",
+    "url": "https://www.monsterhunter.com/wilds/assets/img/hunting/weapon/icon/long-sword_ic.png"
+  },
+  {
+    "name": "片手剑",
+    "file": "sword-and-shield.png",
+    "url": "https://www.monsterhunter.com/wilds/assets/img/hunting/weapon/icon/sword-and-shield_ic.png"
+  },
+  {
+    "name": "双剑",
+    "file": "dual-blades.png",
+    "url": "https://www.monsterhunter.com/wilds/assets/img/hunting/weapon/icon/dual-blades_ic.png"
+  },
+  {
+    "name": "大锤",
+    "file": "hammer.png",
+    "url": "https://www.monsterhunter.com/wilds/assets/img/hunting/weapon/icon/hammer_ic.png"
+  },
+  {
+    "name": "狩猎笛",
+    "file": "hunting-horn.png",
+    "url": "https://www.monsterhunter.com/wilds/assets/img/hunting/weapon/icon/hunting-horn_ic.png"
+  },
+  {
+    "name": "长枪",
+    "file": "lance.png",
+    "url": "https://www.monsterhunter.com/wilds/assets/img/hunting/weapon/icon/lance_ic.png"
+  },
+  {
+    "name": "铳枪",
+    "file": "gunlance.png",
+    "url": "https://www.monsterhunter.com/wilds/assets/img/hunting/weapon/icon/gunlance_ic.png"
+  },
+  {
+    "name": "斩斧",
+    "file": "switch-axe.png",
+    "url": "https://www.monsterhunter.com/wilds/assets/img/hunting/weapon/icon/switch-axe_ic.png"
+  },
+  {
+    "name": "盾斧",
+    "file": "charge-blade.png",
+    "url": "https://www.monsterhunter.com/wilds/assets/img/hunting/weapon/icon/charge-blade_ic.png"
+  },
+  {
+    "name": "操虫棍",
+    "file": "insect-glaive.png",
+    "url": "https://www.monsterhunter.com/wilds/assets/img/hunting/weapon/icon/insect-glaive_ic.png"
+  },
+  {
+    "name": "轻弩炮",
+    "file": "light-bowgun.png",
+    "url": "https://www.monsterhunter.com/wilds/assets/img/hunting/weapon/icon/light-bowgun_ic.png"
+  },
+  {
+    "name": "重弩炮",
+    "file": "heavy-bowgun.png",
+    "url": "https://www.monsterhunter.com/wilds/assets/img/hunting/weapon/icon/heavy-bowgun_ic.png"
+  },
+  {
+    "name": "弓",
+    "file": "bow.png",
+    "url": "https://www.monsterhunter.com/wilds/assets/img/hunting/weapon/icon/bow_ic.png"
+  }
+]
