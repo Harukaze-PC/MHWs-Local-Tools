@@ -8,6 +8,7 @@ internal sealed class BuildTarget
     public string name { get; set; }
     public string basis { get; set; }
     public Dictionary<string,int> skills { get; set; }
+    internal string Style;
     // Priorities order the skills shown for a preset. The score uses membership only.
     internal Dictionary<string,int> displayPriority;
 
@@ -96,7 +97,7 @@ internal static class BuildFit
                 string example = best.Weapons + " · " + best.Names;
                 best.Weapons = String.Join("、", Weapons.Where(w => tied.Any(m => m.Weapons == w)));
                 best.Names = example;
-                if (tied.Count > 1) best.MatchNote = tied.Count + " 个玩法目标同分。以「" + example + "」为例：";
+                if (tied.Count > 1) best.MatchNote = tied.Count + " 个流派评分目标同分。以「" + example + "」为例：";
             }
             else if (tied.Count > 1)
             {

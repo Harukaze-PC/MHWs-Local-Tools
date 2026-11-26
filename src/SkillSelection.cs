@@ -35,15 +35,15 @@ internal sealed class RecommendedSkillEdits
         return overrides.TryGetValue(original, out edited) ? edited : original;
     }
 
-    internal SkillSelection ForWeapon(string weapon)
+    internal SkillSelection ForScope(string weapon, string style)
     {
-        var originals = Recommendations.ForWeapon(weapon);
+        var originals = Recommendations.ForScope(weapon, style);
         return new SkillSelection(originals.Select(Current).ToArray(), originals.Any(overrides.ContainsKey));
     }
 
-    internal void Apply(string weapon, IEnumerable<string> selected, bool restoreDefaults)
+    internal void Apply(string weapon, string style, IEnumerable<string> selected, bool restoreDefaults)
     {
-        var originals = Recommendations.ForWeapon(weapon);
+        var originals = Recommendations.ForScope(weapon, style);
         var baseline = restoreDefaults ? originals : originals.Select(Current).ToArray();
         var desired = new HashSet<string>(selected);
         var additions = desired.Except(baseline.SelectMany(target => target.skills.Keys)).ToArray();
@@ -53,14 +53,14 @@ internal sealed class RecommendedSkillEdits
         {
             var original = originals[i];
             var skills = new HashSet<string>(baseline[i].skills.Keys.Where(desired.Contains));
-            // Restoring a preset skill keeps its original playstyles (including its element).
-            // A skill outside this scope's presets is new to every playstyle in the scope.
+            // Use the exact default targets when restoring a skill, including its element.
+            // A skill outside this scope's presets is new to every target in the scope.
             skills.UnionWith(additions.Where(skill => !nativeSkills.Contains(skill) || original.skills.ContainsKey(skill)));
 
             if (skills.SetEquals(original.skills.Keys)) overrides.Remove(original);
             else if (!skills.SetEquals(Current(original).skills.Keys))
                 overrides[original] = new BuildTarget {
-                    weapon = original.weapon, name = original.name, basis = original.basis,
+                    weapon = original.weapon, Style = original.Style, name = original.name, basis = original.basis,
                     displayPriority = original.displayPriority,
                     skills = skills.ToDictionary(skill => skill, Recommendations.SkillCap)
                 };

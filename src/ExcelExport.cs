@@ -32,8 +32,13 @@ internal static class ExcelExport
 
     internal static void SaveTargets(string path, Inventory inventory, string weapon, BuildTarget[] targets)
     {
-        if (targets == null || targets.Length == 0) throw new ArgumentException("没有找到该武器的评分目标。");
-        SaveCore(path, inventory, weapon, null, targets);
+        SaveTargets(path, inventory, weapon, Recommendations.AllStyles, targets);
+    }
+
+    internal static void SaveTargets(string path, Inventory inventory, string weapon, string style, BuildTarget[] targets)
+    {
+        if (targets == null || targets.Length == 0) throw new ArgumentException("没有找到所选武器与流派的评分目标。");
+        SaveCore(path, inventory, weapon, null, targets, style);
     }
 
     internal static void SaveDecorations(string path, Inventory inventory)
@@ -45,13 +50,13 @@ internal static class ExcelExport
         SaveWorkbook(path, inventory.exportedAt, "装饰珠清单", DecorationSheet(inventory));
     }
 
-    static void SaveCore(string path, Inventory inventory, string profile, HashSet<string> selected, BuildTarget[] builds)
+    static void SaveCore(string path, Inventory inventory, string profile, HashSet<string> selected, BuildTarget[] builds, string style = null)
     {
         string referenceName = null;
         XElement referenceSheet = null;
         if (builds != null) {
-            referenceName = "玩法参考";
-            referenceSheet = RecommendedSheet(profile, builds);
+            referenceName = "流派参考";
+            referenceSheet = RecommendedSheet(profile, style, builds);
         } else if (selected != null) {
             referenceName = "评分说明";
             referenceSheet = SettingsSheet(profile, selected);
@@ -231,9 +236,9 @@ internal static class ExcelExport
         return row;
     }
 
-    static XElement RecommendedSheet(string weapon, BuildTarget[] targets)
+    static XElement RecommendedSheet(string weapon, string style, BuildTarget[] targets)
     {
-        var headers = new[] { "武器", "推荐玩法", "玩法说明", "重点技能", "其他有效技能" };
+        var headers = new[] { "武器", "推荐流派", "流派说明", "重点技能", "其他有效技能" };
         var widths = new[] { 14, 27, 56, 44, 62 };
         var rows = new List<XElement>();
         foreach (var target in targets)
@@ -245,7 +250,7 @@ internal static class ExcelExport
                 String.Join("、", ordered.Where(skill => target.DisplayPriority(skill) < 2)) };
             rows.Add(ReferenceRow(rows.Count + 4, values, widths, rows.Count % 2 == 0 ? 2 : 3));
         }
-        return ReferenceSheet(weapon + " · 玩法参考", "每行是一种玩法。「玩法说明」介绍默认打法，两列技能列出本次评分使用的技能。玩家额外追加的技能列在「其他有效技能」中。",
+        return ReferenceSheet(Recommendations.ScopeLabel(weapon, style) + " · 流派参考", "每行对应一个流派或属性变体。「流派说明」介绍默认打法，两列技能列出本次评分使用的技能。玩家额外追加的技能列在「其他有效技能」中。",
             headers, widths, rows);
     }
 
@@ -286,20 +291,23 @@ internal static class ExcelExport
 
     static XElement Worksheet(Inventory inventory, HashSet<string> selected, BuildTarget[] builds, bool allWeapons)
     {
-        var headers = new List<string> { "箱位", "护石名称", "类型", "稀有度", "技能 1", "技能 2", "技能 3", "装饰品孔位 1", "装饰品孔位 2", "装饰品孔位 3", "已收藏", "已装备" };
-        var widths = new List<int> { 9, 25, 13, 10, 22, 22, 22, 18, 18, 18, 10, 10 };
+        var headers = new List<string>();
+        var widths = new List<int>();
         bool scored = selected != null || builds != null;
         if (scored)
         {
+            headers.Add("护石评分");
+            widths.Add(15);
+            if (allWeapons) { headers.Add("最高分适配武器"); widths.Add(38); }
             if (builds != null)
             {
-                headers.Insert(0, allWeapons ? "最高分玩法示例" : "最高分玩法");
-                widths.Insert(0, 48);
+                headers.Add(allWeapons ? "最高分流派示例" : "最高分流派");
+                widths.Add(48);
             }
-            if (allWeapons) { headers.Insert(0, "最高分适配武器"); widths.Insert(0, 38); }
-            headers.Insert(0, "护石评分");
-            widths.Insert(0, 15);
         }
+        int shift = headers.Count;
+        headers.AddRange(new[] { "护石名称", "类型", "稀有度", "技能 1", "技能 2", "技能 3", "装饰品孔位 1", "装饰品孔位 2", "装饰品孔位 3", "已收藏", "已装备" });
+        widths.AddRange(new[] { 25, 13, 10, 22, 22, 22, 18, 18, 18, 10, 10 });
         var columns = new XElement(Sheet + "cols");
         var data = new XElement(Sheet + "sheetData");
         var header = Row(1, 26);
@@ -310,7 +318,6 @@ internal static class ExcelExport
         }
         data.Add(header);
         int n = 1;
-        int shift = headers.IndexOf("箱位");
         foreach (var entry in InventoryRow.Create(inventory, selected, builds, allWeapons))
         {
             var charm = entry.Charm;
@@ -323,14 +330,14 @@ internal static class ExcelExport
             if (scored) row.Add(entry.Score.HasValue ? NumberCell("A" + n, entry.Score.Value) : TextCell("A" + n, "待核对", 2));
             if (allWeapons) row.Add(TextCell("B" + n, entry.Weapons ?? "待核对", 2));
             if (builds != null) row.Add(TextCell((allWeapons ? "C" : "B") + n, entry.BuildNames ?? "待核对", 2));
-            row.Add(NumberCell(address('A'), charm.boxIndex), TextCell(address('B'), charm.name, 2),
-                TextCell(address('C'), charm.kind == "appraised" ? "鉴定护石" : "制作护石", 2),
-                charm.rarity.HasValue ? NumberCell(address('D'), charm.rarity.Value) : TextCell(address('D'), "未知", 2),
-                charm.skills.Select((skill, index) => TextCell(address((char)('E' + index)), skill.name + " Lv" + skill.level, 2)),
-                charm.slots.Select((slot, index) => TextCell(address((char)('H' + index)), InventoryRow.SocketName(slot.type) + " Lv" + slot.level, 2)),
-                charm.slots.Count == 0 && charm.warnings.Count > 0 ? TextCell(address('H'), "待核对", 2) : null,
-                TextCell(address('K'), charm.favorite ? "是" : "否", 2),
-                TextCell(address('L'), charm.equipped ? "是" : "否", 2));
+            row.Add(TextCell(address('A'), charm.name, 2),
+                TextCell(address('B'), charm.kind == "appraised" ? "鉴定护石" : "制作护石", 2),
+                charm.rarity.HasValue ? NumberCell(address('C'), charm.rarity.Value) : TextCell(address('C'), "未知", 2),
+                charm.skills.Select((skill, index) => TextCell(address((char)('D' + index)), skill.name + " Lv" + skill.level, 2)),
+                charm.slots.Select((slot, index) => TextCell(address((char)('G' + index)), InventoryRow.SocketName(slot.type) + " Lv" + slot.level, 2)),
+                charm.slots.Count == 0 && charm.warnings.Count > 0 ? TextCell(address('G'), "待核对", 2) : null,
+                TextCell(address('J'), charm.favorite ? "是" : "否", 2),
+                TextCell(address('K'), charm.equipped ? "是" : "否", 2));
             data.Add(row);
         }
         string range = "A1:" + (char)('A' + headers.Count - 1) + n;

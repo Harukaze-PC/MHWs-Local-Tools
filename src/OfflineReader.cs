@@ -17,7 +17,7 @@ internal sealed class OfflineCharacter
 
 internal sealed class OfflineTalisman
 {
-    internal int BoxIndex, FreeVal0, FreeVal1;
+    internal int FreeVal0, FreeVal1;
     internal int[] Packed;
     internal bool Favorite, Equipped;
 }
@@ -358,7 +358,7 @@ internal static class OfflineReader
                 var packed = Get<object[]>(item, "BowgunCustomizeId");
                 Require(packed.Length >= 4, "护石的技能和插槽字段不完整。");
                 var talisman = new OfflineTalisman {
-                    BoxIndex = i, FreeVal0 = Get<int>(item, "FreeVal0"), FreeVal1 = Get<int>(item, "FreeVal1"),
+                    FreeVal0 = Get<int>(item, "FreeVal0"), FreeVal1 = Get<int>(item, "FreeVal1"),
                     Packed = Array.ConvertAll(packed, v => (int)v),
                     Favorite = Get<int>(item, "FreeVal4") != 0,
                     Equipped = equipped.Length > 6 && (int)equipped[6] == i

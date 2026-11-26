@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -11,10 +12,11 @@ internal sealed class InventoryRow
 
     internal static InventoryRow[] Create(Inventory inventory, HashSet<string> selected, BuildTarget[] builds, bool allWeapons)
     {
-        var rows = inventory.talismans.Select(charm => MakeRow(charm, selected, builds, allWeapons));
-        if (selected != null || builds != null)
-            rows = rows.OrderByDescending(row => row.Score).ThenBy(row => row.Charm.boxIndex);
-        return rows.ToArray();
+        return inventory.talismans.Select(charm => MakeRow(charm, selected, builds, allWeapons))
+            .OrderByDescending(row => row.Score)
+            .ThenBy(row => row.Charm.name, StringComparer.CurrentCulture)
+            .ThenBy(row => String.Join("、", row.Charm.skills.Select(skill => skill.name + " Lv" + skill.level)), StringComparer.CurrentCulture)
+            .ToArray();
     }
 
     static InventoryRow MakeRow(Charm charm, HashSet<string> selected, BuildTarget[] builds, bool allWeapons)

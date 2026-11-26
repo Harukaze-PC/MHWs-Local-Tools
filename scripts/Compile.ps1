@@ -30,6 +30,7 @@ $resources = [ordered]@{
     'data\crafted-dict.json' = 'crafted'
     'data\recommendations.json' = 'recommendations'
     'data\skill-prices.json' = 'skillPrices'
+    'data\skill-categories.json' = 'skillCategories'
     'data\decoration-dict.json' = 'decorations'
     'images\weapon-thumbnails.png' = 'weaponThumbnails'
 }

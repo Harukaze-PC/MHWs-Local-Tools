@@ -46,114 +46,8 @@ internal class AppForm : Form
     }
 }
 
-internal sealed class SkillSelector : AppForm
-{
-    readonly TextBox search = new TextBox();
-    readonly CheckedListBox list = new CheckedListBox();
-    readonly Label count = new Label();
-    readonly Button apply = new Button();
-    readonly string[] available;
-    readonly string[] recommendedDefaults;
-    bool rebuilding;
-    internal readonly HashSet<string> SelectedSkills = new HashSet<string>();
-    internal bool RestoredDefaults { get; private set; }
-
-    internal SkillSelector(string name, IEnumerable<string> options)
-        : this(name, options, null, null) { }
-
-    internal SkillSelector(string name, IEnumerable<string> options, IEnumerable<string> selected, IEnumerable<string> defaults)
-    {
-        bool editing = defaults != null;
-        recommendedDefaults = editing ? defaults.ToArray() : null;
-        if (selected != null) SelectedSkills.UnionWith(selected);
-        available = options.OrderByDescending(SelectedSkills.Contains)
-            .ThenBy(skill => skill, StringComparer.CurrentCulture).ToArray();
-        Text = (editing ? "编辑技能 · " : "追加技能 · ") + name;
-        Font = new Font("Microsoft YaHei UI", 10); StartPosition = FormStartPosition.CenterParent;
-        AutoScaleMode = AutoScaleMode.Dpi; MinimizeBox = false; ShowInTaskbar = false;
-        ClientSize = new Size(470, 460); MinimumSize = new Size(400, 340);
-        BackColor = Color.FromArgb(247, 247, 241);
-        var grid = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(14), ColumnCount = 1, RowCount = editing ? 5 : 4 };
-        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        int row = 0;
-        if (editing)
-        {
-            grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            string scope = name == BuildFit.AllWeapons ? "全部武器" : "「" + name + "」";
-            grid.Controls.Add(new Label { Text = "修改范围：" + scope + "的推荐玩法。取消勾选可移除技能，额外追加的技能会加入该范围内的每种玩法。",
-                Dock = DockStyle.Fill, AutoSize = true, Margin = new Padding(3, 0, 3, 8) }, 0, row++);
-        }
-        grid.RowStyles.Add(new RowStyle(SizeType.AutoSize)); grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        grid.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        grid.RowStyles.Add(new RowStyle(SizeType.AutoSize)); Controls.Add(grid);
-        grid.Controls.Add(new Label { Text = "搜索技能", AutoSize = true }, 0, row++);
-        search.AccessibleName = "搜索技能"; search.Dock = DockStyle.Top; grid.Controls.Add(search, 0, row++);
-
-        list.Dock = DockStyle.Fill; list.CheckOnClick = true; list.IntegralHeight = false;
-        list.AccessibleName = editing ? "参与评分的技能" : "可追加技能";
-        list.Format += (s,e) => {
-            string skill = (string)e.ListItem;
-            e.Value = skill + "    " + Ratings.PriceLabel(skill);
-        };
-        list.FormattingEnabled = true; grid.Controls.Add(list, 0, row++);
-        var footer = new TableLayoutPanel { ColumnCount = editing ? 4 : 3, AutoSize = true, Dock = DockStyle.Fill };
-        footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        for (int i = 1; i < footer.ColumnCount; i++) footer.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        count.AutoSize = true; count.Anchor = AnchorStyles.Left; footer.Controls.Add(count, 0, 0);
-        int buttonColumn = 1;
-        if (editing)
-        {
-            var reset = new Button { Name = "restoreRecommendation", Text = "恢复推荐", AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink };
-            reset.Click += (s,e) => {
-                SelectedSkills.Clear();
-                SelectedSkills.UnionWith(recommendedDefaults);
-                RestoredDefaults = true;
-                Populate();
-            };
-            footer.Controls.Add(reset, buttonColumn++, 0);
-        }
-        var cancel = new Button { Text = "取消", AutoSize = true, DialogResult = DialogResult.Cancel };
-        apply.Text = editing ? "应用" : "追加"; apply.AutoSize = true; apply.DialogResult = DialogResult.OK;
-        apply.BackColor = Color.FromArgb(30, 92, 74); apply.ForeColor = Color.White;
-        apply.FlatStyle = FlatStyle.Flat; footer.Controls.Add(cancel, buttonColumn++, 0); footer.Controls.Add(apply, buttonColumn, 0);
-        grid.Controls.Add(footer, 0, row); AcceptButton = apply; CancelButton = cancel;
-        list.ItemCheck += (s,e) => {
-            if (rebuilding) return;
-            string skill = (string)list.Items[e.Index];
-            if (e.NewValue == CheckState.Checked) SelectedSkills.Add(skill);
-            else SelectedSkills.Remove(skill);
-            UpdateCount();
-        };
-        search.TextChanged += (s,e) => Populate();
-        Populate();
-    }
-    void UpdateCount()
-    {
-        count.Text = (list.Items.Count == 0 ? "没有匹配技能　·　" : "") +
-            (recommendedDefaults != null ? "已选 " : "待追加 ") + SelectedSkills.Count + " 项";
-        apply.Enabled = recommendedDefaults != null || SelectedSkills.Count > 0;
-    }
-    void Populate()
-    {
-        string query = search.Text.Trim();
-        rebuilding = true; list.BeginUpdate();
-        try
-        {
-            list.Items.Clear();
-            foreach (string skill in available)
-            {
-                if (skill.IndexOf(query, StringComparison.CurrentCultureIgnoreCase) >= 0)
-                    list.Items.Add(skill, SelectedSkills.Contains(skill));
-            }
-        }
-        finally { list.EndUpdate(); rebuilding = false; }
-        UpdateCount();
-    }
-}
-
 internal sealed class Charm
 {
-    public int boxIndex { get; set; }
     public string kind { get; set; }
     public string name { get; set; }
     public int? rarity { get; set; }
@@ -265,7 +159,7 @@ internal static class CharmFiles
                 inv.decorations = DecorationInventory.ForCharacter(character);
             foreach (var item in character.Talismans)
             {
-                var charm = new Charm { boxIndex = item.BoxIndex + 1, favorite = item.Favorite, equipped = item.Equipped,
+                var charm = new Charm { favorite = item.Favorite, equipped = item.Equipped,
                     skills = new List<Skill>(), slots = new List<Socket>(), warnings = new List<string>() };
                 if (item.FreeVal0 >= 189 && item.FreeVal0 <= 192)
                 {
@@ -327,12 +221,13 @@ internal sealed class MissingDecorations : AppForm
         var missing = DecorationInventory.IncludingUnowned(inventory.decorations).Where(d => d.totalCount == 0)
             .OrderBy(d => d.kind == "weapon" ? 0 : 1).ThenBy(d => d.slot)
             .ThenBy(d => d.name, StringComparer.Ordinal).ThenBy(d => d.id).ToArray();
-        Text = inventory.DisplayName + (inventory.showSlot ? "（栏位 " + inventory.characterSlot + "）" : "") + " · 未持有装饰珠";
-        Font = new Font("Microsoft YaHei UI", 10); AutoScaleMode = AutoScaleMode.Dpi;
-        BackColor = Color.FromArgb(247, 247, 241); ForeColor = Color.FromArgb(34, 51, 45);
+        string character = inventory.ToString();
+        Text = character + " · 未持有装饰珠";
+        Font = DeskTheme.Body; AutoScaleMode = AutoScaleMode.Dpi;
+        BackColor = DeskTheme.Canvas; ForeColor = DeskTheme.Ink;
         StartPosition = FormStartPosition.CenterParent; ShowInTaskbar = false;
-        MinimumSize = new Size(470, 290); ClientSize = new Size(660, 420);
-        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(12), ColumnCount = 1, RowCount = 3 };
+        MinimumSize = new Size(470, 290); ClientSize = new Size(720, 465);
+        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(16, 12, 16, 12), ColumnCount = 1, RowCount = 3 };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -340,38 +235,29 @@ internal sealed class MissingDecorations : AppForm
 
         if (missing.Length == 0)
         {
+            layout.Controls.Add(ListHeader.Create("未持有装饰珠", character, null, null, null), 0, 0);
             layout.Controls.Add(new Label { Text = "当前角色已持有图鉴中的全部 " + DecorationInventory.CatalogCount + " 种装饰珠。",
-                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter }, 0, 1);
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, Margin = Padding.Empty,
+                BackColor = DeskTheme.Surface, ForeColor = DeskTheme.Forest, Font = DeskTheme.Heading }, 0, 1);
         }
         else
         {
-            var bar = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 3, Margin = new Padding(0) };
-            bar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            bar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            bar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            const string prompt = "搜索珠名或技能";
-            bar.Controls.Add(new Label { Text = prompt, AutoSize = true, Anchor = AnchorStyles.Left }, 0, 0);
-            var search = new TextBox { AccessibleName = prompt, Dock = DockStyle.Fill };
-            var count = new Label { AutoSize = true, Anchor = AnchorStyles.Right };
-            bar.Controls.Add(search, 1, 0); bar.Controls.Add(count, 2, 0); layout.Controls.Add(bar, 0, 0);
+            var search = new TextBox(); var count = new Label();
+            layout.Controls.Add(ListHeader.Create("未持有装饰珠", character, "搜索珠名或技能", search, count), 0, 0);
 
             var grid = new DataGridView { AccessibleName = "未持有装饰珠清单", Dock = DockStyle.Fill,
                 ReadOnly = true, AllowUserToAddRows = false, AllowUserToDeleteRows = false, AllowUserToResizeRows = false,
-                MultiSelect = false, RowHeadersVisible = false, BackgroundColor = Color.White, EnableHeadersVisualStyles = false,
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect, AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize };
-            grid.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(30, 92, 74);
-            grid.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
-            grid.ColumnHeadersDefaultCellStyle.SelectionBackColor = grid.ColumnHeadersDefaultCellStyle.BackColor;
-            grid.ColumnHeadersDefaultCellStyle.Padding = new Padding(2, 4, 2, 4);
-            grid.DefaultCellStyle.SelectionBackColor = Color.FromArgb(212, 234, 222);
-            grid.DefaultCellStyle.SelectionForeColor = ForeColor; grid.RowTemplate.Height = Font.Height + 9;
-            grid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(245, 249, 246);
-            grid.GridColor = Color.FromArgb(218, 227, 222); grid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
+                MultiSelect = false, RowHeadersVisible = false, Margin = Padding.Empty, Font = Font,
+                ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect, AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill };
+            DeskTheme.StyleGrid(grid);
             string[] labels = { "装饰珠名称", "类型", "所需孔级", "技能" };
             int[] widths = { 32, 12, 15, 41 };
+            int[] minimumWidths = { 110, 55, 78, 124 };
             for (int i = 0; i < labels.Length; i++)
-                grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = labels[i], FillWeight = widths[i] });
+                grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = labels[i], FillWeight = widths[i], MinimumWidth = minimumWidths[i] });
+            grid.Columns[2].HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            grid.Columns[2].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
             layout.Controls.Add(grid, 0, 1);
             Action filter = () => {
                 string query = search.Text.Trim();
@@ -388,43 +274,31 @@ internal sealed class MissingDecorations : AppForm
             search.TextChanged += (s,e) => filter(); filter();
         }
         var close = new Button { Text = "关闭", AutoSize = true, Anchor = AnchorStyles.Right, DialogResult = DialogResult.Cancel };
+        DeskTheme.StyleButton(close); close.Margin = new Padding(0, 8, 0, 0);
         layout.Controls.Add(close, 0, 2); CancelButton = close;
     }
 }
 
 internal sealed partial class CharmDesk : AppForm
 {
-    // Scrollbars are added after WinForms lays out children. Reserve the vertical
-    // scrollbar's width on the first pass so wrapped content always fits the viewport.
-    static Rectangle ScrollWidth(ScrollableControl panel, Rectangle area)
-    {
-        int reserved = panel.VerticalScroll.Visible ? 0 : SystemInformation.VerticalScrollBarWidth;
-        area.Width = Math.Max(0, panel.ClientSize.Width - panel.Padding.Horizontal - reserved);
-        return area;
-    }
-    sealed class SkillFlowPanel : FlowLayoutPanel
-    {
-        public override Rectangle DisplayRectangle { get { return ScrollWidth(this, base.DisplayRectangle); } }
-    }
-    sealed class ContentTable : TableLayoutPanel
-    {
-        public override Rectangle DisplayRectangle { get { return ScrollWidth(this, base.DisplayRectangle); } }
-    }
     internal const string NoRating = "不评分", CustomRating = "自定义选择";
-    readonly ComboBox saves = new ComboBox(), characters = new ComboBox();
+    readonly ComboBox saves = new DropdownPicker(), characters = new DropdownPicker();
+    readonly SaveLocationGuide saveLocationGuide = new SaveLocationGuide();
     string characterSelectionPath;
     int? rememberedCharacterSlot;
-    readonly ComboBox profiles = new ComboBox();
+    readonly ComboBox profiles = new DropdownPicker();
     readonly Label skillPreview = new Label();
     readonly HashSet<string> custom = new HashSet<string>();
     readonly RecommendedSkillEdits recommendedEdits = new RecommendedSkillEdits();
-    readonly FlowLayoutPanel selectedSkillsPanel = new SkillFlowPanel();
+    readonly SkillSummary selectedSkillsPanel = new SkillSummary();
     SkillSelection recommendedSelection;
-    readonly ComboBox weapons = new ComboBox();
+    readonly ComboBox weapons = new DropdownPicker(), styles = new DropdownPicker();
+    readonly TableLayoutPanel recommendationScope = new TableLayoutPanel();
     readonly Label weaponLabel = new Label { Text = "武器", AutoSize = true, Anchor = AnchorStyles.Left };
+    readonly Label styleLabel = new Label { Text = "流派", AutoSize = true, Anchor = AnchorStyles.Left };
     readonly Button adjust = new Button();
     readonly Label status = new Label();
-    readonly TabControl toolTabs = new TabControl();
+    readonly TabControl toolTabs = new DeskTabs();
     readonly Label charmSummary = new Label(), decorationSummary = new Label();
     const int GodCharmScore = 17, SuperCharmScore = 19;
     readonly Label godCharmCount = new Label(), superCharmCount = new Label();
@@ -434,47 +308,77 @@ internal sealed partial class CharmDesk : AppForm
     double decorationProgress;
     readonly Button read = new Button(), preview = new Button(), export = new Button(), browse = new Button();
     readonly Button missingDecorations = new Button(), exportDecorations = new Button();
-    static readonly Color green = Color.FromArgb(30, 92, 74);
     bool busy, writingFile, closeAfterExport;
-    CharmDesk()
+    internal CharmDesk(bool detectSaves = true)
     {
-        Text = AppName; Font = new Font("Microsoft YaHei UI", 10);
-        BackColor = Color.FromArgb(247, 247, 241); ForeColor = Color.FromArgb(34, 51, 45);
-        ClientSize = new Size(760, 598); MinimumSize = new Size(600, 470); StartPosition = FormStartPosition.CenterScreen;
+        Text = AppName; Font = DeskTheme.Body;
+        BackColor = DeskTheme.Canvas; ForeColor = DeskTheme.Ink;
+        ClientSize = new Size(828, 644); MinimumSize = new Size(600, 620); StartPosition = FormStartPosition.CenterScreen;
         AutoScaleMode = AutoScaleMode.Dpi;
-        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(20, 14, 20, 12) };
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(18, 16, 18, 12) };
         page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         page.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         page.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         Controls.Add(page);
-        var header = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 1, Margin = new Padding(0) };
+        var header = new TableLayoutPanel {
+            Dock = DockStyle.Top, AutoSize = true, ColumnCount = 1, Margin = Padding.Empty,
+            Padding = new Padding(16, 10, 16, 12),
+            BackColor = DeskTheme.SaveHeader,
+            ForeColor = DeskTheme.Forest
+        };
         header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); page.Controls.Add(header, 0, 0);
-        Add(header, new Label { Text = "Steam 存档", AutoSize = true, Font = new Font(Font, FontStyle.Bold) });
-        var source = new TableLayoutPanel { ColumnCount = 2, Dock = DockStyle.Top, AutoSize = true };
-        source.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); source.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        saves.Dock = DockStyle.Fill; saves.DropDownStyle = ComboBoxStyle.DropDownList; source.Controls.Add(saves, 0, 0);
-        SetButton(browse, "选择文件…", Choose, false); source.Controls.Add(browse, 1, 0); Add(header, source);
-        var readRow = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 2, Margin = new Padding(0) };
-        readRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize)); readRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        var sourceHeading = new TableLayoutPanel { ColumnCount = 2, Dock = DockStyle.Top, AutoSize = true, Margin = Padding.Empty };
+        sourceHeading.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        sourceHeading.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        sourceHeading.Controls.Add(new Label {
+            Text = "Steam 存档", Font = DeskTheme.Heading, AutoSize = true, Anchor = AnchorStyles.Left, Margin = Padding.Empty
+        }, 0, 0);
+        var locationHelp = new LinkLabel {
+            Name = "saveLocationHelp", Text = "在哪里找存档？", AccessibleName = "查看 Steam 存档位置说明", AutoSize = true,
+            Anchor = AnchorStyles.Right, Margin = Padding.Empty, LinkColor = DeskTheme.Forest,
+            ActiveLinkColor = DeskTheme.Forest, VisitedLinkColor = DeskTheme.Forest,
+            LinkBehavior = LinkBehavior.AlwaysUnderline, Font = DeskTheme.Caption
+        };
+        locationHelp.LinkClicked += (s,e) => saveLocationGuide.ShowBy(locationHelp);
+        saveLocationGuide.Closed += (s,e) => {
+            if (e.CloseReason == ToolStripDropDownCloseReason.Keyboard ||
+                e.CloseReason == ToolStripDropDownCloseReason.CloseCalled) locationHelp.Focus();
+        };
+        Disposed += (s,e) => saveLocationGuide.Dispose();
+        sourceHeading.Controls.Add(locationHelp, 1, 0); Add(header, sourceHeading);
+        var source = new TableLayoutPanel { ColumnCount = 3, Dock = DockStyle.Top, AutoSize = true, Margin = new Padding(0, 6, 0, 8) };
+        source.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        source.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize)); source.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        saves.Name = "saves"; saves.AccessibleName = "Steam 存档";
+        saves.Anchor = AnchorStyles.Left | AnchorStyles.Right; saves.Margin = Padding.Empty;
+        saves.ForeColor = DeskTheme.Ink; saves.BackColor = DeskTheme.Surface;
+        saves.DropDownStyle = ComboBoxStyle.DropDownList;
+        WeaponThumbnails.ConfigureTextPicker(saves);
+        source.Controls.Add(saves, 0, 0);
+        SetButton(browse, "选择文件…", Choose, false);
+        browse.Anchor = AnchorStyles.Left; browse.Margin = new Padding(8, 0, 0, 0);
+        source.Controls.Add(browse, 1, 0);
         SetButton(read, "读取存档", async () => await LoadSave(), true);
-        read.Anchor = AnchorStyles.Left; readRow.Controls.Add(read, 0, 0);
-        readRow.Controls.Add(new Label {
-            Text = "右键 Steam 快捷方式，选择「打开文件所在的位置」。\r\n" +
-                @"进入 userdata\你的数字账号文件夹\2246340\remote\win64_save，选择 data001Slot.bin。",
-            AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Right, Margin = new Padding(9, 2, 3, 2),
-            ForeColor = Color.FromArgb(69, 85, 78)
-        }, 1, 0);
-        Add(header, readRow);
-        Add(header, new Label { Text = "角色清单", AutoSize = true, Font = new Font(Font, FontStyle.Bold), Margin = new Padding(3, 9, 3, 3) });
-        characters.Dock = DockStyle.Top; characters.DropDownStyle = ComboBoxStyle.DropDownList; Add(header, characters);
-        status.AutoSize = true; status.Dock = DockStyle.Top; status.UseMnemonic = false;
+        read.Anchor = AnchorStyles.Left; read.Margin = new Padding(8, 0, 0, 0);
+        source.Controls.Add(read, 2, 0); Add(header, source);
+        var roleRow = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 2, Margin = Padding.Empty };
+        roleRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize)); roleRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        roleRow.Controls.Add(new Label {
+            Text = "角色清单", AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(0, 0, 12, 0)
+        }, 0, 0);
+        characters.Name = "characters"; characters.AccessibleName = "角色清单";
+        characters.Dock = DockStyle.Top; characters.Margin = Padding.Empty; characters.DropDownStyle = ComboBoxStyle.DropDownList;
+        characters.ForeColor = DeskTheme.Ink; characters.BackColor = DeskTheme.Surface;
+        WeaponThumbnails.ConfigureTextPicker(characters); roleRow.Controls.Add(characters, 1, 0); Add(header, roleRow);
+        status.AutoSize = true; status.Dock = DockStyle.Top; status.UseMnemonic = false; status.Font = DeskTheme.Caption;
+        status.Margin = new Padding(0, 6, 0, 0);
         status.Visible = false; Add(header, status);
 
         toolTabs.AccessibleName = "工具选择"; toolTabs.Dock = DockStyle.Fill;
-        toolTabs.Margin = new Padding(0, 8, 0, 0); page.Controls.Add(toolTabs, 0, 1);
-        var charmTab = new TabPage("护石工具") { Padding = new Padding(8), BackColor = BackColor };
-        var decorationTab = new TabPage("装饰珠工具") { Padding = new Padding(8), BackColor = BackColor };
+        toolTabs.Margin = new Padding(0, 12, 0, 0); page.Controls.Add(toolTabs, 0, 1);
+        var charmTab = new TabPage("护石工具") { Padding = new Padding(14, 13, 14, 8), BackColor = DeskTheme.Surface };
+        var decorationTab = new TabPage("装饰珠工具") { Padding = new Padding(14, 13, 14, 8), BackColor = DeskTheme.Surface };
         toolTabs.TabPages.AddRange(new[] { charmTab, decorationTab });
         toolTabs.SelectedIndex = 0;
         var charmLayout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2 };
@@ -483,58 +387,87 @@ internal sealed partial class CharmDesk : AppForm
         charmLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         charmTab.Controls.Add(charmLayout);
         charmLayout.Controls.Add(BuildCharmTierCards(), 0, 0);
-        var grid = new ContentTable { Dock = DockStyle.Fill, ColumnCount = 1, AutoScroll = true, Margin = new Padding(0) };
-        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); charmLayout.Controls.Add(grid, 0, 1);
-        charmSummary.AutoSize = true; charmSummary.Margin = new Padding(3, 4, 3, 8); Add(grid, charmSummary);
+        var scroll = new Panel { Dock = DockStyle.Fill, AutoScroll = true, Margin = Padding.Empty };
+        charmLayout.Controls.Add(scroll, 0, 1);
+        var grid = new TableLayoutPanel { Dock = DockStyle.Top, ColumnCount = 1, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink };
+        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); scroll.Controls.Add(grid);
+        // Wrapping skills can change the grid height during a scrollbar layout pass.
+        // Publish the final height after that pass so Windows updates the entire scroll range.
+        bool scrollUpdatePending = false;
+        grid.SizeChanged += (s,e) => {
+            if (!scroll.IsHandleCreated) { scroll.AutoScrollMinSize = new Size(0, grid.Height); return; }
+            if (scrollUpdatePending) return;
+            scrollUpdatePending = true;
+            scroll.BeginInvoke((Action)(() => {
+                scrollUpdatePending = false;
+                if (scroll.IsDisposed) return;
+                scroll.AutoScrollMinSize = new Size(0, grid.Height);
+                scroll.PerformLayout();
+            }));
+        };
+        charmSummary.AutoSize = true; charmSummary.Margin = new Padding(0, 3, 0, 8);
+        charmSummary.ForeColor = DeskTheme.Muted; Add(grid, charmSummary);
         BuildDecorationCard(decorationTab);
         const string profileLabel = "评分方式（选择有效技能）";
-        var ratingHeader = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, WrapContents = true };
-        ratingHeader.Controls.Add(new Label { Text = profileLabel, AutoSize = true, Anchor = AnchorStyles.Left, Font = new Font(Font, FontStyle.Bold) });
-        var help = new Button { Name = "ratingHelp", AutoSizeMode = AutoSizeMode.GrowAndShrink, Anchor = AnchorStyles.Left };
+        var ratingHeader = new TableLayoutPanel { ColumnCount = 2, Dock = DockStyle.Top, AutoSize = true, Margin = Padding.Empty };
+        ratingHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        ratingHeader.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        ratingHeader.Controls.Add(new Label { Text = "评分方式", AutoSize = true, Anchor = AnchorStyles.Left, Margin = Padding.Empty, Font = DeskTheme.Heading }, 0, 0);
+        var help = new Button { Name = "ratingHelp", AutoSizeMode = AutoSizeMode.GrowAndShrink, Anchor = AnchorStyles.Right };
         SetButton(help, RatingHelp.Caption, () => {
             using (var dialog = new RatingHelp())
                 dialog.ShowDialog(this);
         }, false);
-        help.Padding = new Padding(4, 0, 4, 0);
-        ratingHeader.Controls.Add(help);
+        help.Font = DeskTheme.Caption; help.Padding = new Padding(6, 0, 6, 0); help.Margin = Padding.Empty;
+        ratingHeader.Controls.Add(help, 1, 0);
         Add(grid, ratingHeader);
-        var prefs = new TableLayoutPanel { ColumnCount = 3, Dock = DockStyle.Top, AutoSize = true };
-        prefs.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        prefs.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        prefs.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        profiles.AccessibleName = profileLabel;
-        profiles.DropDownStyle = ComboBoxStyle.DropDownList; profiles.Dock = DockStyle.Top;
+        profiles.Name = "profiles"; profiles.AccessibleName = profileLabel;
+        profiles.DropDownStyle = ComboBoxStyle.DropDownList; profiles.Dock = DockStyle.Top; profiles.Margin = new Padding(0, 4, 0, 6);
+        WeaponThumbnails.ConfigureTextPicker(profiles);
         profiles.Items.Add(NoRating); profiles.Items.Add(Recommendations.Mode); profiles.Items.Add(CustomRating);
-        prefs.Controls.Add(profiles, 0, 0);
+        Add(grid, profiles);
+
+        recommendationScope.ColumnCount = 4; recommendationScope.Dock = DockStyle.Top;
+        recommendationScope.AutoSize = true; recommendationScope.Margin = Padding.Empty;
+        recommendationScope.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        recommendationScope.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 44));
+        recommendationScope.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        recommendationScope.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 56));
         weapons.DropDownStyle = ComboBoxStyle.DropDownList;
         WeaponThumbnails.ConfigureWeaponPicker(weapons);
-        weapons.MinimumSize = new Size(145, 0);
         weapons.Items.Add(BuildFit.AllWeapons);
         weapons.Items.AddRange(BuildFit.Weapons);
-        weapons.Dock = DockStyle.Top;
-        weapons.AccessibleName = "参考武器";
-        prefs.Controls.Add(weaponLabel, 1, 0);
-        prefs.Controls.Add(weapons, 2, 0); Add(grid, prefs);
-        var skillHeader = new TableLayoutPanel { ColumnCount = 2, Dock = DockStyle.Top, AutoSize = true };
+        weapons.Dock = DockStyle.Top; weapons.Name = "weapons"; weapons.AccessibleName = "推荐武器";
+        styles.DropDownStyle = ComboBoxStyle.DropDownList; styles.Dock = DockStyle.Top;
+        styles.Name = "styles"; styles.AccessibleName = "推荐流派";
+        WeaponThumbnails.ConfigureTextPicker(styles);
+        recommendationScope.Controls.Add(weaponLabel, 0, 0);
+        recommendationScope.Controls.Add(weapons, 1, 0);
+        recommendationScope.Controls.Add(styleLabel, 2, 0);
+        recommendationScope.Controls.Add(styles, 3, 0);
+        weaponLabel.Margin = new Padding(0, 0, 8, 0); styleLabel.Margin = new Padding(14, 0, 8, 0);
+        weapons.Margin = styles.Margin = Padding.Empty;
+        Add(grid, recommendationScope);
+        var skillHeader = new TableLayoutPanel { ColumnCount = 2, Dock = DockStyle.Top, AutoSize = true, Margin = new Padding(0, 6, 0, 0) };
         skillHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         skillHeader.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        skillPreview.AutoSize = true; skillPreview.Anchor = AnchorStyles.Left;
+        skillPreview.AutoSize = true; skillPreview.Anchor = AnchorStyles.Left; skillPreview.Margin = Padding.Empty; skillPreview.ForeColor = DeskTheme.Muted;
         skillHeader.Controls.Add(skillPreview, 0, 0);
-        SetButton(adjust, "追加技能", AdjustSkills, false);
-        adjust.Name = "addSkills"; skillHeader.Controls.Add(adjust, 1, 0); Add(grid, skillHeader);
-        selectedSkillsPanel.Name = "selectedSkillsPanel"; selectedSkillsPanel.AccessibleName = "已选技能";
-        selectedSkillsPanel.Dock = DockStyle.Top; selectedSkillsPanel.AutoScroll = true;
-        selectedSkillsPanel.Padding = new Padding(4); selectedSkillsPanel.BackColor = Color.White;
-        selectedSkillsPanel.BorderStyle = BorderStyle.FixedSingle;
+        SetButton(adjust, "编辑技能", AdjustSkills, false);
+        adjust.Name = "editSkills"; adjust.Margin = Padding.Empty; skillHeader.Controls.Add(adjust, 1, 0); Add(grid, skillHeader);
         Add(grid, selectedSkillsPanel);
-        profiles.SelectedIndexChanged += (s,e) => RefreshRating();
-        weapons.SelectedIndexChanged += (s,e) => RefreshRecommendedSelection();
-        profiles.SelectedIndex = 0;
         weapons.SelectedIndex = 0;
-        var buttons = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, ColumnCount = 2, RowCount = 1,
-            Margin = new Padding(0, 6, 0, 0) };
-        buttons.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        PopulateStyles();
+        profiles.SelectedIndex = 0;
+        profiles.SelectedIndexChanged += (s,e) => RefreshRating();
+        weapons.SelectedIndexChanged += (s,e) => { PopulateStyles(); RefreshRecommendedSelection(); };
+        styles.SelectedIndexChanged += (s,e) => { if (!rebuildingStyles) RefreshRecommendedSelection(); };
+        RefreshRecommendedSelection();
+        var buttons = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, ColumnCount = 3, RowCount = 1,
+            Margin = new Padding(0, 7, 0, 0) };
         buttons.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        buttons.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        buttons.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         page.Controls.Add(buttons, 0, 2);
         SetButton(preview, "查看护石", async () => {
             try { await ShowPreview(); }
@@ -545,16 +478,20 @@ internal sealed partial class CharmDesk : AppForm
             using (var dialog = new MissingDecorations((Inventory)characters.SelectedItem)) dialog.ShowDialog(this);
         }, true);
         SetButton(exportDecorations, "导出装饰珠 Excel", async () => await SaveExcel(true), false);
-        AddActionColumn(buttons, 0, preview, missingDecorations);
         AddActionColumn(buttons, 1, export, exportDecorations);
+        AddActionColumn(buttons, 2, preview, missingDecorations);
         toolTabs.SelectedIndexChanged += (s,e) => UpdateToolButtons();
         UpdateToolButtons();
-        string[] detected;
-        try { detected = CharmFiles.FindSaves(); } catch { detected = new string[0]; }
-        saves.Items.AddRange(detected); if (detected.Length > 0) saves.SelectedIndex = 0;
-        saves.SelectedIndexChanged += async (s,e) => await LoadSave();
         characters.SelectedIndexChanged += (s,e) => { SetStatus(""); UpdateCharacterSummary(); UpdateState(); };
-        Shown += async (s,e) => await LoadSave();
+        HandleCreated += (s,e) => { if (characters.SelectedItem != null) UpdateCharmHighlights(); };
+        if (detectSaves)
+        {
+            string[] detected;
+            try { detected = CharmFiles.FindSaves(); } catch { detected = new string[0]; }
+            saves.Items.AddRange(detected); if (detected.Length > 0) saves.SelectedIndex = 0;
+            Shown += async (s,e) => await LoadSave();
+        }
+        saves.SelectedIndexChanged += async (s,e) => await LoadSave();
         FormClosing += (s,e) => {
             if (!writingFile || e.CloseReason != CloseReason.UserClosing) return;
             closeAfterExport = e.Cancel = true;
@@ -583,39 +520,40 @@ internal sealed partial class CharmDesk : AppForm
     TableLayoutPanel BuildCharmTierCards()
     {
         var charmTiers = new TableLayoutPanel {
-            AccessibleName = "推荐玩法护石分档", AutoSize = true, ColumnCount = 2, RowCount = 1,
+            AccessibleName = "武器与流派推荐护石分档", AutoSize = true, ColumnCount = 2, RowCount = 1,
             Dock = DockStyle.Top, Margin = new Padding(0, 0, 0, 4)
         };
         charmTiers.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         charmTiers.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         charmTiers.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         charmTiers.Controls.Add(BuildCharmTier("神护石", GodCharmScore + "～" + (SuperCharmScore - 1) + " 分",
-            godCharmCount, Color.FromArgb(231, 240, 232), green, new Padding(0, 0, 4, 0)), 0, 0);
+            godCharmCount, DeskTheme.Tint, DeskTheme.Forest, new Padding(0, 0, 5, 0)), 0, 0);
         charmTiers.Controls.Add(BuildCharmTier("超神护石", SuperCharmScore + " 分及以上",
-            superCharmCount, Color.FromArgb(246, 238, 216), Color.FromArgb(108, 68, 18), new Padding(4, 0, 0, 0)), 1, 0);
+            superCharmCount, DeskTheme.GoldTint, DeskTheme.Gold, new Padding(5, 0, 0, 0)), 1, 0);
         return charmTiers;
     }
 
     TableLayoutPanel BuildCharmTier(string title, string criterion, Label count, Color background, Color accent, Padding margin)
     {
         var card = new TableLayoutPanel {
-            ColumnCount = 1, AutoSize = true, Dock = DockStyle.Fill, Margin = margin,
-            Padding = new Padding(12, 5, 12, 6), BackColor = background
+            ColumnCount = 2, RowCount = 2, AutoSize = true, Dock = DockStyle.Fill, Margin = margin,
+            Padding = new Padding(14, 9, 14, 9), BackColor = background
         };
-        Add(card, new Label {
-            Text = title + "　·　" + criterion, AutoSize = true,
-            Margin = Padding.Empty, ForeColor = accent, Font = new Font(Font, FontStyle.Bold)
-        });
+        card.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        card.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        card.Controls.Add(new Label { Text = title, AutoSize = true, Margin = Padding.Empty, ForeColor = accent, Font = DeskTheme.Heading }, 0, 0);
+        card.Controls.Add(new Label { Text = criterion, AutoSize = true, Margin = new Padding(0, 2, 0, 0), ForeColor = accent, Font = DeskTheme.Caption }, 0, 1);
         count.AccessibleName = title + "数量";
         count.AutoSize = true;
-        count.Font = new Font(Font.FontFamily, 20, FontStyle.Bold);
+        count.Anchor = AnchorStyles.Right;
+        count.Font = DeskTheme.Stat;
         count.ForeColor = accent;
-        count.Margin = Padding.Empty;
-        Add(card, count);
+        count.Margin = new Padding(5, 0, 0, 0);
+        card.Controls.Add(count, 1, 0); card.SetRowSpan(count, 2);
         return card;
     }
 
-    async void UpdateCharmHighlights()
+    void UpdateCharmHighlights()
     {
         var inventory = characters.SelectedItem as Inventory;
         if (inventory == null)
@@ -626,18 +564,22 @@ internal sealed partial class CharmDesk : AppForm
         }
 
         UpdateCharmSummary(inventory);
+        if (!IsHandleCreated) return;
         var selection = recommendedSelection;
-        bool allWeapons = (string)weapons.SelectedItem == BuildFit.AllWeapons;
+        bool allWeapons = SelectedWeapon == BuildFit.AllWeapons;
         godCharmCount.Text = superCharmCount.Text = "…";
-        InventoryRow[] rows = null;
-        try
-        {
-            rows = await Task.Run(() => InventoryRow.Create(inventory, null, selection.Targets, allWeapons));
-        }
-        catch (Exception error)
-        {
-            System.Diagnostics.Debug.WriteLine(error);
-        }
+        Task.Run(() => {
+            InventoryRow[] rows = null;
+            try { rows = InventoryRow.Create(inventory, null, selection.Targets, allWeapons); }
+            catch (Exception error) { System.Diagnostics.Debug.WriteLine(error); }
+            // The window can close while scoring a previously selected scope.
+            try { BeginInvoke((Action)(() => DisplayCharmHighlights(inventory, selection, rows))); }
+            catch (InvalidOperationException error) { System.Diagnostics.Debug.WriteLine(error); }
+        });
+    }
+
+    void DisplayCharmHighlights(Inventory inventory, SkillSelection selection, InventoryRow[] rows)
+    {
         if (IsDisposed || Disposing || !ReferenceEquals(inventory, characters.SelectedItem) ||
             !ReferenceEquals(selection, recommendedSelection)) return;
         if (rows == null)
@@ -659,33 +601,33 @@ internal sealed partial class CharmDesk : AppForm
         decorationCard.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         decorationCard.Dock = DockStyle.Top;
         decorationCard.AutoSize = true;
-        decorationCard.Padding = new Padding(18, 8, 18, 8);
-        decorationCard.BackColor = Color.FromArgb(231, 240, 232);
+        decorationCard.Padding = new Padding(20, 17, 20, 18);
+        decorationCard.BackColor = DeskTheme.Tint;
         Add(decorationCard, new Label {
-            Text = "装饰珠图鉴", AutoSize = true, ForeColor = green,
-            Font = new Font(Font, FontStyle.Bold), Margin = Padding.Empty
+            Text = "装饰珠图鉴", AutoSize = true, ForeColor = DeskTheme.Forest,
+            Font = DeskTheme.Heading, Margin = Padding.Empty
         });
 
         decorationHeadline.AutoSize = true;
-        decorationHeadline.ForeColor = green;
-        decorationHeadline.Font = new Font(Font.FontFamily, 21, FontStyle.Bold);
-        decorationHeadline.Margin = new Padding(0, 2, 0, 0);
+        decorationHeadline.ForeColor = DeskTheme.Forest;
+        decorationHeadline.Font = DeskTheme.Stat;
+        decorationHeadline.Margin = new Padding(0, 7, 0, 0);
         Add(decorationCard, decorationHeadline);
 
         decorationMeter.AccessibleRole = AccessibleRole.ProgressBar;
         decorationMeter.AccessibleName = "装饰珠收集进度";
         decorationMeter.Dock = DockStyle.Top;
-        decorationMeter.Height = 7;
-        decorationMeter.Margin = new Padding(0, 6, 0, 6);
-        decorationMeter.BackColor = Color.FromArgb(203, 223, 208);
+        decorationMeter.Height = 8;
+        decorationMeter.Margin = new Padding(0, 10, 0, 10);
+        decorationMeter.BackColor = SystemInformation.HighContrast ? SystemColors.Window : DeskTheme.Border;
         decorationMeter.Paint += (s,e) => {
             int width = (int)Math.Round(decorationMeter.ClientSize.Width * decorationProgress);
-            using (var brush = new SolidBrush(green))
+            using (var brush = new SolidBrush(DeskTheme.Accent))
                 e.Graphics.FillRectangle(brush, 0, 0, width, decorationMeter.ClientSize.Height);
         };
         Add(decorationCard, decorationMeter);
 
-        decorationSummary.AutoSize = true;
+        decorationSummary.AutoSize = true; decorationSummary.ForeColor = DeskTheme.Forest;
         decorationSummary.Margin = Padding.Empty;
         Add(decorationCard, decorationSummary);
         decorationCard.Visible = false;
@@ -693,8 +635,9 @@ internal sealed partial class CharmDesk : AppForm
 
         decorationMessage.AutoSize = true;
         decorationMessage.Dock = DockStyle.Top;
-        decorationMessage.Padding = new Padding(4, 7, 4, 0);
-        decorationMessage.Visible = false;
+        decorationMessage.Padding = new Padding(16, 14, 16, 14);
+        decorationMessage.ForeColor = DeskTheme.Forest; decorationMessage.BackColor = DeskTheme.Tint;
+        decorationMessage.Text = "读取存档并选择角色后，可查看装饰珠收集进度。";
         page.Controls.Add(decorationMessage);
     }
 
@@ -715,7 +658,9 @@ internal sealed partial class CharmDesk : AppForm
         UpdateCharmHighlights();
         if (inv == null)
         {
-            decorationCard.Visible = decorationMessage.Visible = false;
+            decorationCard.Visible = false;
+            decorationMessage.Text = "读取存档并选择角色后，可查看装饰珠收集进度。";
+            decorationMessage.Visible = true;
             return;
         }
         int total = DecorationInventory.CatalogCount;
@@ -748,10 +693,25 @@ internal sealed partial class CharmDesk : AppForm
             inventory.talismans.Count(c => c.favorite)) + (ratingStatus.Length > 0 ? "　·　" + ratingStatus : "");
     }
     string Profile { get { return profiles.SelectedItem as string ?? NoRating; } }
+    string SelectedWeapon { get { return (string)weapons.SelectedItem ?? BuildFit.AllWeapons; } }
+    string SelectedStyle { get { return (string)styles.SelectedItem ?? Recommendations.AllStyles; } }
     SkillSelection Preset { get { return Profile == Recommendations.Mode ? recommendedSelection : null; } }
+    bool rebuildingStyles;
+    void PopulateStyles()
+    {
+        rebuildingStyles = true;
+        styles.BeginUpdate();
+        try
+        {
+            styles.Items.Clear();
+            styles.Items.AddRange(Recommendations.StylesForWeapon(SelectedWeapon));
+            styles.SelectedIndex = 0;
+        }
+        finally { styles.EndUpdate(); rebuildingStyles = false; }
+    }
     void RefreshRecommendedSelection()
     {
-        recommendedSelection = recommendedEdits.ForWeapon((string)weapons.SelectedItem);
+        recommendedSelection = recommendedEdits.ForScope(SelectedWeapon, SelectedStyle);
         RefreshRating();
         UpdateCharmHighlights();
     }
@@ -759,92 +719,55 @@ internal sealed partial class CharmDesk : AppForm
     {
         string mode = Profile;
         bool hasPreset = mode == Recommendations.Mode;
-        weaponLabel.Visible = weapons.Visible = hasPreset;
-        adjust.Text = hasPreset ? "编辑技能" : "追加技能";
+        recommendationScope.Visible = hasPreset;
         adjust.Visible = hasPreset || mode == CustomRating;
         selectedSkillsPanel.Visible = hasPreset || mode == CustomRating;
-        selectedSkillsPanel.AccessibleName = hasPreset ? "推荐玩法的有效技能" : "已选技能";
+        selectedSkillsPanel.AccessibleName = hasPreset ? "所选武器与流派的有效技能" : "已选技能";
         DisplaySkills();
     }
     void DisplaySkills()
     {
-        var preset = Preset;
-        selectedSkillsPanel.SuspendLayout();
-        try
-        {
-            foreach (Control old in selectedSkillsPanel.Controls.Cast<Control>().ToArray()) old.Dispose();
-            selectedSkillsPanel.AutoScrollPosition = Point.Empty;
-            if (preset != null)
-            {
-                foreach (string name in preset.DefaultSkills)
-                    selectedSkillsPanel.Controls.Add(new Label {
-                        Text = name, AutoSize = true, UseMnemonic = false, Padding = new Padding(4, 2, 4, 2),
-                        Margin = new Padding(2), BackColor = BackColor, ForeColor = ForeColor
-                    });
-            }
-            else if (Profile == CustomRating)
-            {
-                foreach (string name in custom.OrderBy(skill => skill, StringComparer.CurrentCulture))
-                {
-                    var chip = new Button { Text = name + " ×", Tag = name, AccessibleName = "移除" + name,
-                        AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, FlatStyle = FlatStyle.Flat,
-                        BackColor = Color.White, ForeColor = ForeColor, Margin = new Padding(2), Padding = new Padding(4, 0, 4, 0) };
-                    chip.FlatAppearance.BorderColor = Color.FromArgb(194, 203, 197);
-                    chip.Click += RemoveSkill; selectedSkillsPanel.Controls.Add(chip);
-                }
-            }
-        }
-        finally { selectedSkillsPanel.ResumeLayout(true); }
-        UpdateSkillSummary();
-    }
-    void RemoveSkill(object sender, EventArgs args)
-    {
-        if (Profile != CustomRating) return;
-        var chip = (Button)sender;
-        custom.Remove((string)chip.Tag);
-        chip.Dispose();
-        UpdateSkillSummary();
-    }
-    void UpdateSkillSummary()
-    {
-        var preset = Preset;
-        int count = preset == null ? custom.Count : preset.DefaultSkills.Length;
         if (Profile == NoRating)
-            skillPreview.Text = "按装备箱顺序导出。";
-        else
         {
-            skillPreview.Text = selectedSkillsPanel.AccessibleName + "（" + count + "）"
-                + (preset != null && preset.IsEdited ? " · 已编辑" : "");
-            if (count == 0)
-                selectedSkillsPanel.Controls.Add(new Label { Text = preset == null ? "点击「追加技能」选择参与评分的技能。" : "当前仅计算孔位分，可点「编辑技能」添加技能。", AutoSize = true, Margin = new Padding(5) });
-            int rows = count < 3 ? 1 : (count <= 6 ? 2 : 3);
-            var chip = selectedSkillsPanel.Controls[0];
-            int rowHeight = chip.GetPreferredSize(Size.Empty).Height + chip.Margin.Vertical;
-            selectedSkillsPanel.Height = rows * rowHeight + selectedSkillsPanel.Padding.Vertical + 2 * SystemInformation.BorderSize.Height;
-        }
-        UpdateState();
-    }
-    void AdjustSkills()
-    {
-        var preset = Preset;
-        if (preset != null)
-        {
-            string weapon = (string)weapons.SelectedItem;
-            var defaults = Recommendations.ForWeapon(weapon).SelectMany(target => target.skills.Keys).Distinct();
-            using (var picker = new SkillSelector(weapon, Ratings.Skills, preset.DefaultSkills, defaults))
-            {
-                if (picker.ShowDialog(this) != DialogResult.OK) return;
-                recommendedEdits.Apply(weapon, picker.SelectedSkills, picker.RestoredDefaults);
-                RefreshRecommendedSelection();
-            }
+            skillPreview.Font = DeskTheme.Body;
+            skillPreview.ForeColor = DeskTheme.Muted;
+            skillPreview.Text = "仅列出护石，不计算分数。";
+            UpdateState();
             return;
         }
-        if (Profile != CustomRating) return;
-        using (var picker = new SkillSelector(Profile, Ratings.Skills.Except(custom)))
+        var preset = Preset;
+        var names = preset == null ? custom.OrderBy(name => name, StringComparer.CurrentCulture).ToArray() : preset.DefaultSkills;
+        skillPreview.Font = DeskTheme.Heading;
+        skillPreview.ForeColor = DeskTheme.Forest;
+        skillPreview.Text = (preset == null ? "已选技能" : "有效技能") + "  ·  " + names.Length + " 项"
+            + (preset != null && preset.IsEdited ? " · 已编辑" : "");
+        selectedSkillsPanel.SetSkills(names, preset == null ? "点击「编辑技能」选择参与评分的技能。" : "当前仅计算孔位分。");
+        UpdateState();
+    }
+
+    void AdjustSkills()
+    {
+        bool recommended = Profile == Recommendations.Mode;
+        if (!recommended && Profile != CustomRating) return;
+        string weapon = SelectedWeapon, style = SelectedStyle;
+        string scope = recommended ? Recommendations.ScopeLabel(weapon, style) : CustomRating;
+        var initial = recommended ? recommendedSelection.DefaultSkills : custom.ToArray();
+        var defaults = recommended ? Recommendations.ForScope(weapon, style)
+            .SelectMany(target => target.skills.Keys).Distinct().ToArray() : null;
+        using (var picker = new SkillPicker(scope, SkillCatalog.Skills, initial, defaults))
         {
             if (picker.ShowDialog(this) != DialogResult.OK) return;
-            custom.UnionWith(picker.SelectedSkills);
-            DisplaySkills();
+            if (recommended)
+            {
+                recommendedEdits.Apply(weapon, style, picker.SelectedSkills, picker.RestoredDefaults);
+                RefreshRecommendedSelection();
+            }
+            else
+            {
+                custom.Clear();
+                custom.UnionWith(picker.SelectedSkills);
+                DisplaySkills();
+            }
         }
     }
     BuildTarget[] SelectedTargets()
@@ -854,9 +777,8 @@ internal sealed partial class CharmDesk : AppForm
     }
     void SetButton(Button button, string text, Action action, bool primary)
     {
-        button.Text = text; button.AutoSize = true; button.FlatStyle = FlatStyle.Flat; button.Padding = new Padding(8, 3, 8, 3);
-        button.BackColor = primary ? green : Color.White; button.ForeColor = primary ? Color.White : ForeColor;
-        button.FlatAppearance.BorderColor = primary ? green : Color.FromArgb(175, 188, 181);
+        button.Text = text; button.AutoSize = true; button.Padding = new Padding(10, 3, 10, 3);
+        DeskTheme.StyleButton(button, primary);
         button.Click += (s,e) => { try { action(); } catch (Exception error) { MessageBox.Show(this, error.Message, Text); } };
     }
     void Choose()
@@ -882,7 +804,7 @@ internal sealed partial class CharmDesk : AppForm
         try
         {
             if (path == null) { SetStatus("尚未找到本机 Steam 存档，请点「选择文件」。"); return; }
-            SetStatus("正在读取装备箱…");
+            SetStatus("正在读取护石和装饰珠…");
             var list = await Task.Run(() => CharmFiles.Read(path));
             if (list.Count == 0) {
                 rememberedCharacterSlot = null;
@@ -902,13 +824,14 @@ internal sealed partial class CharmDesk : AppForm
         preview.Enabled = export.Enabled = ready && inv != null && (Profile != CustomRating || custom.Count > 0);
         missingDecorations.Enabled = exportDecorations.Enabled = ready && inv != null;
         saves.Enabled = browse.Enabled = characters.Enabled = ready; read.Enabled = ready && saves.SelectedIndex >= 0;
-        toolTabs.Enabled = profiles.Enabled = weapons.Enabled = selectedSkillsPanel.Enabled = ready;
-        adjust.Enabled = ready && (Preset != null || (Profile == CustomRating && custom.Count < Ratings.Skills.Length));
+        toolTabs.Enabled = profiles.Enabled = recommendationScope.Enabled = selectedSkillsPanel.Enabled = ready;
+        styles.Enabled = ready && SelectedWeapon != BuildFit.AllWeapons;
+        adjust.Enabled = ready && (Preset != null || Profile == CustomRating);
     }
     async Task ShowPreview()
     {
         var inventory = (Inventory)characters.SelectedItem;
-        string mode = Profile, weapon = (string)weapons.SelectedItem;
+        string mode = Profile, weapon = SelectedWeapon, style = SelectedStyle;
         bool recommended = mode == Recommendations.Mode;
         var selected = mode == CustomRating ? new HashSet<string>(custom) : null;
         var builds = SelectedTargets();
@@ -921,7 +844,7 @@ internal sealed partial class CharmDesk : AppForm
             var rows = await Task.Run(() => InventoryRow.Create(inventory, selected, builds, allWeapons));
             if (IsDisposed || Disposing) return;
             SetStatus("已读取 " + rows.Length + " 枚护石。");
-            string label = recommended ? mode + " · " + weapon : mode;
+            string label = recommended ? Recommendations.ScopeLabel(weapon, style) : mode;
             using (var window = new CharmPreview(inventory, label, mode != NoRating, recommended, allWeapons, rows))
                 window.ShowDialog(this);
         }
@@ -947,11 +870,11 @@ internal sealed partial class CharmDesk : AppForm
             Title = "保存" + content + " Excel 清单", Filter = "Excel 工作簿 (*.xlsx)|*.xlsx",
             DefaultExt = "xlsx", AddExtension = true,
             FileName = "荒野" + content + "-" + inventory.FileLabel + "-" +
-                (!decorationsOnly && Profile == Recommendations.Mode ? (string)weapons.SelectedItem + "推荐-" : "") + DateTime.Now.ToString("yyyyMMdd-HHmmss")
+                (!decorationsOnly && Profile == Recommendations.Mode ? SelectedWeapon + "-" + SelectedStyle + "-" : "") + DateTime.Now.ToString("yyyyMMdd-HHmmss")
         })
         {
             if (dialog.ShowDialog(this) != DialogResult.OK) return;
-            string mode = Profile, weapon = (string)weapons.SelectedItem, path = dialog.FileName;
+            string mode = Profile, weapon = SelectedWeapon, style = SelectedStyle, path = dialog.FileName;
             var selected = new HashSet<string>(custom);
             var builds = SelectedTargets();
             writingFile = true;
@@ -961,7 +884,7 @@ internal sealed partial class CharmDesk : AppForm
             {
                 await Task.Run(() => {
                     if (decorationsOnly) ExcelExport.SaveDecorations(path, inventory);
-                    else if (builds != null) ExcelExport.SaveTargets(path, inventory, weapon, builds);
+                    else if (builds != null) ExcelExport.SaveTargets(path, inventory, weapon, style, builds);
                     else if (mode == CustomRating) ExcelExport.Save(path, inventory, CustomRating, selected);
                     else ExcelExport.Save(path, inventory);
                 });

@@ -19,9 +19,6 @@ internal static class Ratings
     internal const string WeightSource = "https://www.bilibili.com/video/BV12gbYzdEnR/?t=170";
     static readonly Dictionary<string,SkillPrice> Prices =
         CharmFiles.Serializer().Deserialize<Dictionary<string,SkillPrice>>(CharmFiles.Resource("skillPrices"));
-    internal static readonly string[] Skills = Recommendations.SelectableSkills
-        .OrderBy(name => name, StringComparer.CurrentCulture).ToArray();
-
     internal static int PointsPerLevel(string skill)
     {
         SkillPrice price;

@@ -19,7 +19,7 @@ internal sealed class RecommendationData
 
 internal static class Recommendations
 {
-    internal const string Mode = "按玩法推荐";
+    internal const string Mode = "按武器/流派推荐", AllStyles = "全部流派";
     static readonly RecommendationData Data = CharmFiles.Serializer().Deserialize<RecommendationData>(CharmFiles.Resource("recommendations"));
     static readonly BuildTarget[] Targets = BuildTargets().ToArray();
 
@@ -33,7 +33,7 @@ internal static class Recommendations
                 var priority = new Dictionary<string,int>(style.skills);
                 if (element.Length > 0) priority[element + "属性攻击强化"] = 3;
                 yield return new BuildTarget {
-                    weapon = style.weapon, name = style.name + (element.Length == 0 ? "" : "·" + element),
+                    weapon = style.weapon, Style = style.name, name = style.name + (element.Length == 0 ? "" : "·" + element),
                     basis = style.reason, displayPriority = priority,
                     skills = priority.Keys.ToDictionary(key => key, key => Data.caps[key])
                 };
@@ -43,7 +43,25 @@ internal static class Recommendations
 
     internal static BuildTarget[] ForWeapon(string weapon)
     {
-        return weapon == BuildFit.AllWeapons ? Targets : Targets.Where(t => t.weapon == weapon).ToArray();
+        return ForScope(weapon, AllStyles);
+    }
+
+    internal static BuildTarget[] ForScope(string weapon, string style)
+    {
+        if (weapon == BuildFit.AllWeapons) return Targets;
+        return Targets.Where(target => target.weapon == weapon &&
+            (style == AllStyles || target.Style == style)).ToArray();
+    }
+
+    internal static string[] StylesForWeapon(string weapon)
+    {
+        if (weapon == BuildFit.AllWeapons) return new[] { AllStyles };
+        return new[] { AllStyles }.Concat(ForWeapon(weapon).Select(target => target.Style).Distinct()).ToArray();
+    }
+
+    internal static string ScopeLabel(string weapon, string style)
+    {
+        return weapon + " · " + style;
     }
 
     internal static IEnumerable<string> SelectableSkills { get { return Data.caps.Keys; } }
